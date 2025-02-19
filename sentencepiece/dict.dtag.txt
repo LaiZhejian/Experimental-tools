@@ -1,0 +1,5 @@
+OK 5
+minor 4
+major 3
+critical 2
+PAD 1
