@@ -19,7 +19,7 @@ class MutexLock:
     def __init__(self, filename=DEFAULT_MUTEX_PATH):
         self.filename = filename
         self.handle = open(filename, 'w')
-        self.acquired = False
+        self.acquired = 0
         # 设置 FD_CLOEXEC 标志
         flags = fcntl.fcntl(self.handle, fcntl.F_GETFD)
         fcntl.fcntl(self.handle, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
@@ -28,18 +28,23 @@ class MutexLock:
         """Acquire the lock."""
         try:
             fcntl.flock(self.handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self.acquired = True
+            self.acquired = 1
             return True
         except BlockingIOError:
-            return self.acquired
+            if self.acquired:
+                self.acquired += 1
+                return True
+            else:
+                return False
         except Exception as e:
             print(f"检测文件锁时发生错误: {e}")
             exit(-1)
 
     def release(self):
         """Release the lock."""
-        self.acquired = False
-        fcntl.flock(self.handle, fcntl.LOCK_UN)
+        self.acquired -= 1
+        if self.acquired == 0:
+            fcntl.flock(self.handle, fcntl.LOCK_UN)
 
     # def __del__(self):
     #     try:

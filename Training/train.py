@@ -6,6 +6,7 @@ import os
 import gpustat
 import fcntl
 import sys
+import subprocess
 
 start = time.time()
 DEFAULT_MUTEX_PATH = "/tmp/laizj-ysqd-mutex-{}.lock"
@@ -18,13 +19,13 @@ class MutexLock:
         self.handle = open(filename, 'w')
         self.acquired = 0
         # 设置 FD_CLOEXEC 标志
-        flags = fcntl.fcntl(self.handle, fcntl.F_GETFD)
-        fcntl.fcntl(self.handle, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+        # flags = fcntl.fcntl(self.handle, fcntl.F_GETFD)
+        # fcntl.fcntl(self.handle, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
 
     def acquire(self):
         """Acquire the lock."""
         try:
-            fcntl.flock(self.handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.acquired = 1
             return True
         except BlockingIOError:
@@ -41,7 +42,7 @@ class MutexLock:
         """Release the lock."""
         self.acquired -= 1
         if self.acquired == 0:
-            fcntl.flock(self.handle, fcntl.LOCK_UN)
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
 
     # def __del__(self):
     #     try:
@@ -61,7 +62,7 @@ def get_available_devices():
     device_ids = []
     gpu_stats = gpustat.new_query()
     for idx, gpu in enumerate(gpu_stats):
-        if (len(gpu.processes) == 0 or gpu.memory_used < 500 or gpu.memory_available > 40000) and mutexs[idx].acquire():
+        if (len(gpu.processes) == 0 or gpu.memory_available > 45000) and gpu.memory_used < 5000 and mutexs[idx].acquire():
             device_ids.append(idx)
             mutexs[idx].release()
     return device_ids
@@ -128,7 +129,7 @@ def main(bash_path, gpus, now, args):
             else:
                 gpus = avai_cuda_devices
                 check_for_others = True
-                print( f'Waiting for checking device id {avai_cuda_devices} at time {strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
+                print(f'Waiting for checking device id {avai_cuda_devices} at time {strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
                 sleep(300)
                 
     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(map(str, gpus))
@@ -160,6 +161,11 @@ def main(bash_path, gpus, now, args):
         command = ['/bin/bash', bash_path] + list(args)
         os.execve('/bin/bash', command, os.environ)
 
+    # if os.path.splitext(bash_path)[-1] == '.py':
+    #     command = [sys.executable, bash_path] + list(args)
+    # else:
+    #     command = ['/bin/bash', bash_path] + list(args)
+    # subprocess.run(command, env=os.environ, check=True)
 
 if __name__ == "__main__":
     main()
