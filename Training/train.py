@@ -68,7 +68,7 @@ def get_available_devices():
     return device_ids
 
 
-def set_visible_gpus(gpus: int | List[int] = 1):
+def set_visible_gpus(gpus=1):
     global start
     device_ids = None
     while device_ids is None:
