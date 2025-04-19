@@ -16,6 +16,7 @@ mutexs = []
 class MutexLock:
     def __init__(self, filename=DEFAULT_MUTEX_PATH):
         self.filename = filename
+        print("creating lock", filename, os.path.exists(filename))
         self.handle = open(filename, 'w')
         self.acquired = 0
         # 设置 FD_CLOEXEC 标志
@@ -44,12 +45,12 @@ class MutexLock:
         if self.acquired == 0:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
 
-    # def __del__(self):
-    #     try:
-    #         self.handle.close()
-    #         os.remove(self.filename)
-    #     except Exception as e:
-    #         pass
+    def __del__(self):
+        try:
+            self.handle.close()
+            # os.remove(self.filename)
+        except Exception as e:
+            pass
 
 
 def init_mutex():
@@ -64,7 +65,6 @@ def get_available_devices():
     for idx, gpu in enumerate(gpu_stats):
         if (len(gpu.processes) == 0 or gpu.memory_available > 45000) and gpu.memory_used < 5000 and mutexs[idx].acquire():
             device_ids.append(idx)
-            mutexs[idx].release()
     return device_ids
 
 
@@ -76,10 +76,12 @@ def set_visible_gpus(gpus=1):
         if isinstance(gpus, int):
             device_ids = get_available_devices()
             if len(device_ids) >= gpus:
+                for ids in device_ids[gpus:]:
+                    mutexs[ids].release()
                 device_ids = device_ids[:gpus]
-                for ids in device_ids:
-                    mutexs[ids].acquire()
             else:
+                for ids in device_ids:
+                    mutexs[ids].release()
                 device_ids = None
         else:
             flag = True
@@ -156,10 +158,10 @@ def main(bash_path, gpus, now, args):
 
     if os.path.splitext(bash_path)[-1] == '.py':
         command = [sys.executable, bash_path] + list(args)
-        os.execve(sys.executable, command, os.environ)
+        # os.execve(sys.executable, command, os.environ)
     else:
         command = ['/bin/bash', bash_path] + list(args)
-        os.execve('/bin/bash', command, os.environ)
+    subprocess.run(command, env=os.environ, check=True)
 
     # if os.path.splitext(bash_path)[-1] == '.py':
     #     command = [sys.executable, bash_path] + list(args)
