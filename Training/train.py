@@ -16,7 +16,7 @@ mutexs = []
 class MutexLock:
     def __init__(self, filename=DEFAULT_MUTEX_PATH):
         self.filename = filename
-        print("creating lock", filename, os.path.exists(filename))
+        # print("creating lock", filename, os.path.exists(filename))
         self.handle = open(filename, 'w')
         self.acquired = 0
         # 设置 FD_CLOEXEC 标志
