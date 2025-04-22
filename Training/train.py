@@ -1,3 +1,5 @@
+import datetime
+import socket
 from time import gmtime, sleep, strftime
 import time
 from typing import List
@@ -7,6 +9,7 @@ import gpustat
 import fcntl
 import sys
 import subprocess
+from .send_email import send_experiment_completion_email
 
 start = time.time()
 DEFAULT_MUTEX_PATH = "/tmp/laizj-ysqd-mutex-{}.lock"
@@ -63,7 +66,7 @@ def get_available_devices():
     device_ids = []
     gpu_stats = gpustat.new_query()
     for idx, gpu in enumerate(gpu_stats):
-        if (len(gpu.processes) == 0 or gpu.memory_available > 45000) and gpu.memory_used < 5000 and mutexs[idx].acquire():
+        if (len(gpu.processes) == 0 or gpu.memory_available / gpu.memory_total > 0.9) and gpu.memory_used < 5000 and mutexs[idx].acquire():
             device_ids.append(idx)
     return device_ids
 
@@ -103,8 +106,9 @@ def set_visible_gpus(gpus=1):
 @click.option('--bash-path', required=True, type=str)
 @click.option('--gpus', default=1, type=int)
 @click.option('--now', default=False, is_flag=True, type=bool)
+@click.option('--email', default=False, is_flag=True, type=bool)
 @click.argument('args', nargs=-1)  # 捕获所有额外的参数
-def main(bash_path, gpus, now, args):
+def main(bash_path, gpus, now, email, args):
     global start
     
     if len(gpustat.new_query()) == 0:
@@ -161,8 +165,50 @@ def main(bash_path, gpus, now, args):
         # os.execve(sys.executable, command, os.environ)
     else:
         command = ['/bin/bash', bash_path] + list(args)
-    subprocess.run(command, env=os.environ, check=True)
+    
+    run_exception = None
+    try:
+        subprocess.run(command, env=os.environ, check=True)
+    except Exception as e:
+        run_exception = e
 
+    if email:
+        arg_content = [f"Arg {i}: {arg}" for i, arg in enumerate(args, start=1)]
+        arg_content = " ".join(arg_content) if arg_content else "no argument"
+        
+            # ======== 邮件内容 ========
+        hostname = socket.gethostname()
+        completion_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if run_exception:
+            subject_info = "[实验失败]"
+            email_content = f"""
+        您的实验出现了错误！
+        实验名称: {os.path.basename(bash_path)}
+        实验参数: {arg_content}
+        错误信息: {run_exception}
+        完成时间: {completion_time}
+        运行主机: {hostname} GPUS: {gpus}
+        
+        """
+        else:
+            subject_info = "[实验完成]"
+            email_content = f"""
+        您的实验已顺利完成！
+
+        实验名称: {os.path.basename(bash_path)}
+        实验参数: {arg_content}
+        完成时间: {completion_time}
+        运行主机: {hostname} GPUS: {gpus}
+
+        此邮件由实验监控脚本自动发送，请勿直接回复。
+        """
+        
+        send_experiment_completion_email(
+            source_name="实验监控系统",
+            subject=f"{subject_info} - {os.path.basename(bash_path)}",
+            email_content=email_content
+        )
+        
     # if os.path.splitext(bash_path)[-1] == '.py':
     #     command = [sys.executable, bash_path] + list(args)
     # else:
