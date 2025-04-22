@@ -160,6 +160,7 @@ def main(bash_path, gpus, now, email, args):
     print('#' * 69)
     print()
 
+    start = time.time()
     if os.path.splitext(bash_path)[-1] == '.py':
         command = [sys.executable, bash_path] + list(args)
         # os.execve(sys.executable, command, os.environ)
@@ -183,6 +184,7 @@ def main(bash_path, gpus, now, email, args):
             subject_info = "[实验失败]"
             email_content = f"""
         您的实验出现了错误！
+        
         实验名称: {os.path.basename(bash_path)}
         实验参数: {arg_content}
         错误信息: {run_exception}
@@ -192,11 +194,18 @@ def main(bash_path, gpus, now, email, args):
         """
         else:
             subject_info = "[实验完成]"
+            
+            elapsed_time = int(time.time() - start)
+            hours = elapsed_time // 3600
+            minutes = (elapsed_time % 3600) // 60
+            seconds = elapsed_time % 60
+            
             email_content = f"""
         您的实验已顺利完成！
-
+        
         实验名称: {os.path.basename(bash_path)}
         实验参数: {arg_content}
+        运行耗时: {hours:02d}:{minutes:02d}:{seconds:02d}
         完成时间: {completion_time}
         运行主机: {hostname} GPUS: {gpus}
 
