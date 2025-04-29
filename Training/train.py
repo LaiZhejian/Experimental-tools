@@ -71,7 +71,7 @@ def get_available_devices():
     return device_ids
 
 
-def set_visible_gpus(gpus=1):
+def set_visible_gpus(gpus=1, no_wait=False): # 一直寻找，直到找到指定数量的GPU，并对这些GPU上锁
     global start
     device_ids = None
     while device_ids is None:
@@ -98,6 +98,9 @@ def set_visible_gpus(gpus=1):
                 for ids in gpus:
                     mutexs[ids].acquire()
                 device_ids = gpus
+        if device_ids is None and no_wait:
+            print('\nno gpu available, exit')
+            exit(-1)
     print(f'waiting for gpu {strftime("%H:%M:%S", gmtime(time.time() - start))} ...')
     return device_ids
 
@@ -106,9 +109,10 @@ def set_visible_gpus(gpus=1):
 @click.option('--bash-path', required=True, type=str)
 @click.option('--gpus', default=1, type=int)
 @click.option('--now', default=False, is_flag=True, type=bool)
+@click.option("--no_wait", default=False, is_flag=True, type=bool)
 @click.option('--email', default=False, is_flag=True, type=bool)
 @click.argument('args', nargs=-1)  # 捕获所有额外的参数
-def main(bash_path, gpus, now, email, args):
+def main(bash_path, gpus, now, no_wait, email, args):
     global start
     
     if len(gpustat.new_query()) == 0:
@@ -119,7 +123,7 @@ def main(bash_path, gpus, now, email, args):
     start = time.time()
     check_for_others = False
     while True:
-        avai_cuda_devices = set_visible_gpus(gpus=gpus if isinstance(gpus, int) else len(gpus))
+        avai_cuda_devices = set_visible_gpus(gpus=gpus if isinstance(gpus, int) else len(gpus), no_wait=no_wait)
         if now:
             gpus = avai_cuda_devices
             break
@@ -207,7 +211,7 @@ def main(bash_path, gpus, now, email, args):
         实验参数: {arg_content}
         运行耗时: {hours:02d}:{minutes:02d}:{seconds:02d}
         完成时间: {completion_time}
-        运行主机: {hostname} GPUS: {gpus}
+        运行主机: {hostname} GPUs: {gpus}
 
         此邮件由实验监控脚本自动发送，请勿直接回复。
         """

@@ -14,9 +14,15 @@ def send_experiment_completion_email(source_name, subject, email_content):
     socket.socket = socks.socksocket  # 替换 socket
     
     # ======== 配置部分 ========
-    sender_email = ""
-    sender_password = ""
-    receiver_email = ""
+    
+    if os.environ.get("YSQD_EMAIL_ADDR") is None:
+        raise ValueError("请设置环境变量 YSQD_EMAIL_ADDR")
+    if os.environ.get("YSQD_AUTHORIZED_KEY") is None:
+        raise ValueError("请设置环境变量 YSQD_AUTHORIZED_KEY")
+    
+    sender_email = os.environ["YSQD_EMAIL_ADDR"]
+    sender_password = os.environ["YSQD_AUTHORIZED_KEY"]
+    receiver_email = os.environ["YSQD_EMAIL_ADDR"]
     smtp_server = "smtp.qq.com"
     smtp_port = 465
 
