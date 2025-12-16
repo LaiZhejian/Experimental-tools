@@ -1,0 +1,6 @@
+[submodule "QE_Related/subword-nmt"]
+	path = QE_Related/subword-nmt
+	url = https://github.com/rsennrich/subword-nmt.git
+[submodule "QE_Related/mosesdecoder"]
+	path = QE_Related/mosesdecoder
+	url = https://github.com/moses-smt/mosesdecoder.git

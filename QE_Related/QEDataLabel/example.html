@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Hello World</title>
+  <script src="./dependencies/react.development.js"></script>
+  <script src="./dependencies/react-dom.development.js"></script>
+
+  <!-- Don't use this in production: -->
+  <script src="./dependencies/babel.min.js"></script>
+
+  <script src="./dependencies/moment.min.js"></script>
+  <link rel="stylesheet" href="./dependencies/antd.min.css">
+  <script src="./dependencies/antd.min.js"></script>
+  <script src="https://unpkg.com/@ant-design/icons@5.3.1/dist/index.umd.min.js"></script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Button, Radio, Badge, Descriptions, Upload, Pagination } = antd
+    const { Dragger } = Upload;
+    const { DownloadOutlined } = icons;
+    const { useState } = React;
+
+
+    function MyApp() {
+
+      const [current, setCurrentPage] = useState(1);
+      const [currentText, setCurrentText] = useState([]);
+
+      let data = []
+
+      const props = {
+        name: 'file',
+        multiple: true,
+        onChange(info) {
+          if (info.fileList.length >= 1) {
+
+            let sents = {}
+            let promises = []; // 用于存储所有的Promise
+            
+            for (let file of info.fileList) {
+              let key = ""
+              if (file.name.search('src$') != -1) {
+                key = "src"
+              }
+              else if (file.name.search('mt$') != -1) {
+                key = "mt"
+              }
+              else if (file.name.search('tags?$') != -1) {
+                key = "tag"
+              }
+              else if (file.name.search('pe$') != -1) {
+                key = "pe"
+              }
+              else {
+                console.alert("Unknown File")
+              }
+              
+              let promise = new Promise((resolve, reject) => {
+                var reader = new FileReader();
+                reader.readAsText(file.originFileObj, 'utf-8');
+                reader.onload = function (e) {
+                  resolve({ key: key, data: reader.result.trim().split('\n') }); // 解决Promise，带有键和数据
+                };
+                reader.onerror = reject; // 如果有错误，拒绝Promise
+              });
+
+              promises.push(promise); // 将Promise添加到数组中
+            }
+
+            Promise.all(promises).then(results => {
+              // 此时results是一个包含每个文件结果的数组
+              let sents = {}; // 用于存储所有结果的对象
+              results.forEach(result => {
+                sents[result.key] = result.data; // 将每个文件的结果存储到对象中
+              });
+
+              // 在这里处理sents对象
+              let entries_num = -1
+              for (let sent of sents) {
+                if (entries_num != -1 && entries_num != sent.length) {
+                  console.alert("The number of entries in the files is not equal")
+                }
+                else{
+                  entries_num = sent.length
+                }
+              }
+            })
+
+          }
+
+        },
+        onDrop(e) {
+          console.log('Dropped files', e.dataTransfer.files);
+        },
+      };
+
+      function pageChange(current) {
+        setCurrentPage(current - 1);
+        setCurrentText(source_sents);
+        console.log("当前第{current}数据")
+      }
+
+      function display(text) {
+        if (current >= text.length)
+          return ""
+        return text[current]
+      }
+
+      function display_translation(text) {
+        if (current >= text.length)
+          return ""
+        return (
+          <div>
+            {
+              words.map((word, index) => {
+                if (index % 2 == 0)
+                  return (
+                    <span key={index} style={{ marginRight: "5px" }}>{word}</span>
+                  )
+                return (
+                  <span key={index} style={{ backgroundColor: "yellow", marginRight: "5px" }}>{word}</span>
+                )
+              })
+            }
+          </div>
+        )
+      }
+
+
+      return (
+        <div>
+          <Dragger {...props}>
+            <p className="ant-upload-text">Click or drag file to this area to upload</p>
+            <p className="ant-upload-hint">
+              Support for a single or bulk upload. Strictly prohibited from uploading company data or other
+              banned files.
+            </p>
+          </Dragger>
+
+          <Descriptions title="QE Data" column={1} labelStyle={{ width: "100px", }} bordered>
+            <Descriptions.Item label="Source">{display(currentText)}</Descriptions.Item>
+            <Descriptions.Item label="Translation"></Descriptions.Item>
+            <Descriptions.Item label="Post-Edit"> </Descriptions.Item>
+            <Descriptions.Item label="Tools" >
+              <Pagination simple defaultCurrent={1} total={50} style={{ display: "inline-block", marginRight: "50px" }} onChange={pageChange} />
+              <Button type="primary" shape="circle" icon={<DownloadOutlined />} />
+
+            </Descriptions.Item>
+          </Descriptions>
+
+        </div>
+
+
+
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<MyApp />);
+
+  </script>
+</body>
+
+</html>

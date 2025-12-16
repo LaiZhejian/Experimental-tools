@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+    <head>
+        <!-- 声明当前页面的编码集：charset=gbk,gb2312(中文编码) , utf-8(国际编码) -->
+        <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+        <!-- 声明当前页面的三元素 -->
+        <title>helloWorld--zxk</title>
+        <meta name='keywords' content='关键词,关键词'>
+        <meta name='description' content=''>
+ 
+        <!-- js/css -->
+ 
+    </head>
+    <style>
+        #accumulator_wrapper{
+            margin-top: 20px;
+        }
+        #pe_input{
+            width:600px
+        }
+        .mainbody{
+            margin-top: 20px;
+        }
+        .mt_container, .old_container{
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .content{
+            border-width: 3px;
+            border-style: solid;
+            border-color: transparent;
+        }
+        .content:hover {
+            border-width: 3px;
+            border-style: solid;
+            border-color:lightblue;
+            box-shadow: 1px 1px 4px rgba(0,0,0,.3);
+        }
+        .block{
+            width: 15px;
+        }
+    </style>
+<body>
+    <div class="input_container">
+        <input type="text" id="start_input">
+        <button type="button" id="next">next</button>
+        <input type="file" id="input" multiple="multiple"/> <br />
+        <button type="button" id="accumulator_wrapper">当前id为<span id="start_span"></span>,已修改<span id="accumulator_span">0</span>项tag</button>
+        <button type="button" id="downCurrent">下载当前Tag</button>
+        <button type="button" id="downPE">下载PE</button>
+    </div>
+    <div class="mainbody">
+        <div class="src_container">
+            <span>src:</span>
+        </div>
+        <div class="mt_container">
+            <span>new :</span>
+        </div>
+        <div class="old_container">
+            <span>new :</span>
+        </div>
+        <div class="pe_container">
+            <span>pe :</span>
+        </div>
+        <div class="old_pe_container">
+            <span>old :</span>
+        </div>
+        <div>
+            <span>updated_pe:</span>
+            <input type="text" id="pe_input">
+        </div>
+    </div> 
+</body>
+<script>
+    const input = document.querySelector('input[type=file]')
+    const suf = [".src", "now.tags", ".mt", "now.pe", "old.tags", 'old.pe']
+    var files = new Array(5)
+    var text = new Array(5)
+    var ready_for_new = 0, ready_for_old = 0, count = 0, accumulator = 0
+    var start = 0
+    var nxtbtn = document.querySelector('#next')
+    var downloadTags = document.querySelector('#accumulator_wrapper')
+    var downloadPes = document.querySelector('#downPE')
+    var downCurrent = document.querySelector('#downCurrent')
+    var src_container = document.querySelector('.src_container')
+    var mt_container = document.querySelector('.mt_container')
+    var old_container = document.querySelector('.old_container')
+    var pe_container = document.querySelector('.pe_container')
+    var old_pe_container = document.querySelector('.old_pe_container')
+    var accumulator_span = document.querySelector('#accumulator_span')
+    var start_span = document.querySelector('#start_span')
+    var start_input = document.querySelector('#start_input')
+    var pe_input = document.querySelector('#pe_input')
+    var tags = null, words = null
+    var updated_tags = '', updated_pes = ''
+
+    nxtbtn.addEventListener('click', ()=>{
+        if (count < 4 || start + 1 >= text[0].length) return
+        updated_tags += tags.join(' ') + '\n'
+        updated_pes += pe_input.value + '\n'
+        pe_input.value = ''
+        modifyAccu(accumulator + 1)
+        modifyStart(start + 1)
+    })
+
+    start_input.addEventListener('change', ()=>{
+        if (count < 4) return
+        modifyAccu(0)
+        updated_pes = ''
+        updated_tags = ''
+        modifyStart(parseInt(start_input.value))
+    })
+
+    downloadTags.addEventListener('click', ()=>{
+        if (count < 4) return
+        const stringData = updated_tags
+
+        const blob = new Blob([stringData], {
+            type: "text/plain;charset=utf-8"
+        })
+        const objectURL = URL.createObjectURL(blob)
+        const aTag = document.createElement('a')
+        aTag.href = objectURL
+        aTag.download = "updated.tags"
+        aTag.click()
+        URL.revokeObjectURL(objectURL)
+    })
+
+    downCurrent.addEventListener('click', ()=>{
+        if (count < 4) return
+        const stringData = tags.join(' ')
+        const blob = new Blob([stringData], {
+            type: "text/plain;charset=utf-8"
+        })
+        const objectURL = URL.createObjectURL(blob)
+        const aTag = document.createElement('a')
+        aTag.href = objectURL
+        aTag.download = "current.tags"
+        aTag.click()
+        URL.revokeObjectURL(objectURL)
+    })
+
+    downloadPes.addEventListener('click', ()=>{
+        if (count < 4) return
+        const stringData = updated_pes
+
+        const blob = new Blob([stringData], {
+            type: "text/plain;charset=utf-8"
+        })
+        const objectURL = URL.createObjectURL(blob)
+        const aTag = document.createElement('a')
+        aTag.href = objectURL
+        aTag.download = "updated.pe"
+        aTag.click()
+        URL.revokeObjectURL(objectURL)
+    })
+
+    function addContent(containter, className, content, ifClick) {
+        let div = document.createElement('div')
+        let id = containter.children.length - 1
+        div.innerHTML = content
+        div.className = className
+        if (containter == mt_container) {
+            div.addEventListener('click', ()=>{
+                if (tags[id] == 'BAD') {
+                    div.style.backgroundColor = 'transparent'
+                    tags[id] = 'OK'
+                } 
+                else if (tags[id] == 'OK'){
+                    div.style.backgroundColor = 'pink'
+                    tags[id] = 'BAD'
+                }
+                else {
+                    console.log('tag标签有问题')
+                }
+            })
+        }
+        containter.append(div)
+    }
+
+    function modifyAccu(newValue) {
+        accumulator = newValue
+        accumulator_span.innerHTML = accumulator
+    }
+
+    function modifyStart(newValue){
+        start = newValue
+        start_span.innerHTML = start
+
+        showText()
+    }
+
+    function showText() {
+            while(src_container.children.length > 1)
+                src_container.removeChild(src_container.lastElementChild)
+            while(mt_container.children.length > 1)
+                mt_container.removeChild(mt_container.lastElementChild)
+            while(old_container.children.length > 1)
+                old_container.removeChild(old_container.lastElementChild)
+            while(pe_container.children.length > 1)
+                pe_container.removeChild(pe_container.lastElementChild)
+            while(old_pe_container.children.length > 1)
+                old_pe_container.removeChild(old_pe_container.lastElementChild)
+
+            //src
+            let div = document.createElement('span')
+            div.innerHTML = text[0][start]
+            src_container.append(div)
+            //mt
+            words = text[2][start].split(/ +/)
+            tags = text[1][start].split(/ +/)
+            addContent(mt_container, 'content block', '')
+            for (var i = 0; i < words.length; i++) {
+                addContent(mt_container, 'content', words[i])
+                addContent(mt_container, 'content block', '')
+            }
+            for (var i = 0; i < tags.length; i++) {
+                if (tags[i] == 'BAD')
+                    mt_container.children[i + 1].style.backgroundColor = 'pink'
+            }
+            var otags = text[4][start].split(/ +/)
+            addContent(old_container, 'content block', '')
+            for (var i = 0; i < words.length; i++) {
+                addContent(old_container, 'content', words[i])
+                addContent(old_container, 'content block', '')
+            }
+            for (var i = 0; i < otags.length; i++) {
+                if (otags[i] == 'BAD')
+                    old_container.children[i + 1].style.backgroundColor = 'pink'
+            }
+            //pe
+            div = document.createElement('span')
+            div.innerHTML = text[3][start]
+            pe_container.append(div)
+            div = document.createElement('span')
+            div.innerHTML = text[5][start]
+            old_pe_container.append(div)
+    }
+
+    // 载入input中的文本内容 
+    function loadText(index) {
+        start_span.innerHTML = start
+        var reader = new FileReader()
+        reader.readAsText(files[index], 'utf-8')
+        reader.onload = function(){
+
+            text[index] = reader.result.trim()
+            text[index] = text[index].split('\n')
+            if (index == 0) {
+                let span = document.createElement('span')
+                span.innerHTML = text[index][start]
+                document.querySelector('.src_container').append(span)
+            }
+            else if (index == 1 || index == 2) {
+                ready_for_new += 1
+                if (ready_for_new == 2) {
+                    words = text[2][start].split(/ +/)
+                    tags = text[1][start].split(/ +/)
+                    addContent(mt_container, 'content block', '')
+                    for (var i = 0; i < words.length; i++) {
+                        addContent(mt_container, 'content', words[i])
+                        addContent(mt_container, 'content block', '')
+                    }
+                    for (var i = 0; i < tags.length; i++) {
+                        if (tags[i] == 'BAD')
+                            mt_container.children[i + 1].style.backgroundColor = 'pink'
+                    }
+                }
+            }
+            else if (index == 3){
+                let span = document.createElement('span')
+                span.innerHTML = text[index][start]
+                pe_container.append(span)
+            }
+            else if (index == 5) {
+                let span = document.createElement('span')
+                span.innerHTML = text[index][start]
+                old_pe_container.append(span)
+            }
+            if (index == 4 || index == 2) {
+                ready_for_old += 1
+                if (ready_for_old == 2) {
+                    words = text[2][start].split(/ +/)
+                    var otags = text[4][start].split(/ +/)
+                    addContent(old_container, 'content block', '')
+                    for (var i = 0; i < words.length; i++) {
+                        addContent(old_container, 'content', words[i])
+                        addContent(old_container, 'content block', '')
+                    }
+                    for (var i = 0; i < otags.length; i++) {
+                        if (otags[i] == 'BAD')
+                            old_container.children[i + 1].style.backgroundColor = 'pink'
+                    }
+                }
+            }
+            count += 1
+        }
+    }
+
+    // 添加选择文件后的响应函数
+    input.addEventListener('change', ()=>{
+        for(var i = 0; i < input.files.length; i++) {
+            for (var j = 0; j < suf.length; j++) {
+                let reg = suf[j]
+                if (input.files[i].name.search(reg) != -1)
+                    files[j] = input.files[i]
+            }
+        }
+        for (var i = 0; i < input.files.length; i++) {
+            loadText(i)
+        }
+    })
+</script>
+</html>

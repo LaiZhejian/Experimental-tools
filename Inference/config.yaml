@@ -1,0 +1,53 @@
+llm:
+  name: RawTextLLM
+
+api:
+  base_url: http://10.114.179.123:8413/v1
+  api_key: EMPTY
+  model: default
+  timeout: 3600
+
+runner:
+  sem_num: 256
+  batch_size: 1024
+  write_every_n: 1
+  count_total_jsonl: false   # 大 jsonl 不扫 total，启动更快
+
+generation:
+  sampling_params:
+    temperature: 0.7
+    top_p: 0.95
+    max_tokens: 2048
+    n: 4                     # 多采样 n>1
+
+data:
+  prompt_key: prompt
+
+  # === ID 策略 ===
+  id_key: generate_id
+  id_mode: index             # index | hash
+  hash_role_content: true    # id_mode=hash 时只 hash role+content
+
+  # === 输出字段 ===
+  output_key: generated_texts
+  parsed_key: parsed
+  parse_error_key: parse_errors
+  incomplete_key: incomplete
+  error_key: error
+
+processing:
+  strip_think: true          # RawTextLLM 也会统一去 <think>…</think>
+
+json_llm:
+  # RawTextLLM 不用 json 解析，但这些字段仍被基类读取
+  resample_rounds: 2         # 文本失败时最多补齐 2 轮
+  max_dropped_errors: 3
+  require_exact_n: false     # 不强制凑满 n
+
+resume:
+  enabled: true              # 断点续跑
+
+best_of_n:
+  enabled: false             # RawTextLLM 默认不选 best
+
+log_level: INFO
